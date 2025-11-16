@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 
 	"github.com/deb2000-sudo/trackshift/internal/crypto"
 	"github.com/deb2000-sudo/trackshift/internal/session"
@@ -22,7 +23,16 @@ func main() {
 	tempDir := flag.String("temp-dir", "", "temporary directory for chunk storage")
 	sessionDir := flag.String("sessions-dir", "sessions", "session state directory")
 	protocolFlag := flag.String("protocol", "tcp", "transport protocol: tcp or udp")
+	logFile := flag.String("log-file", "", "path to log file (optional)")
 	flag.Parse()
+
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			log.Fatalf("open log file: %v", err)
+		}
+		log.SetOutput(io.MultiWriter(os.Stdout, f))
+	}
 
 	sessMgr, err := session.NewSessionManager(*sessionDir)
 	if err != nil {

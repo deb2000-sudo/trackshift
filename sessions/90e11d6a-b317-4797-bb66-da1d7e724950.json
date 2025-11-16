@@ -1,0 +1,47 @@
+{
+  "id": "90e11d6a-b317-4797-bb66-da1d7e724950",
+  "file": {
+    "name": "testfile.bin",
+    "size": 104857600,
+    "hash": "995373067727d5c646885e254ba68c821ad265af8afca44a14e9307544ca20e1",
+    "mime_type": ""
+  },
+  "status": "created",
+  "chunks": {
+    "0": {
+      "id": "0",
+      "size": 52428800,
+      "offset": 0,
+      "sha256": "092eced1aa23855ad337fca5d19447d45256caead5806a494c838a7142c9778a",
+      "is_parity": false,
+      "status": "completed",
+      "updated_at": "2025-11-16T09:12:08.257920318+05:30",
+      "created_at": "2025-11-16T09:12:07.382915865+05:30",
+      "session_id": "90e11d6a-b317-4797-bb66-da1d7e724950",
+      "priority": 0,
+      "retry_count": 0,
+      "error": ""
+    },
+    "1": {
+      "id": "1",
+      "size": 52428800,
+      "offset": 52428800,
+      "sha256": "a0cdb1540c5c48b23cadf18b298f782129f6b1048badc01f57ada9bf08115e94",
+      "is_parity": false,
+      "status": "completed",
+      "updated_at": "2025-11-16T09:12:08.612167111+05:30",
+      "created_at": "2025-11-16T09:12:07.382915865+05:30",
+      "session_id": "90e11d6a-b317-4797-bb66-da1d7e724950",
+      "priority": 0,
+      "retry_count": 0,
+      "error": ""
+    }
+  },
+  "created_at": "2025-11-16T09:12:07.669806012+05:30",
+  "updated_at": "2025-11-16T09:12:08.612167384+05:30",
+  "total_chunks": 0,
+  "completed": 2,
+  "failed": 0,
+  "bytes_sent": 0,
+  "bytes_received": 0
+}

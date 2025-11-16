@@ -16,6 +16,7 @@ echo "Building binaries..."
 make build
 
 echo "Starting receiver..."
+pkill receiver 2>/dev/null || true
 ./bin/receiver --port 9090 \
   --output-dir /tmp/trackshift-test/receiver \
   --temp-dir /tmp/trackshift-test/receiver/temp \

@@ -8,12 +8,16 @@ import (
 	"net"
 	"time"
 
+	"github.com/deb2000-sudo/trackshift/internal/telemetry"
 	"github.com/deb2000-sudo/trackshift/pkg/models"
 )
 
 // TCPSender sends chunks and associated metadata over a TCP connection.
 type TCPSender struct {
 	DialTimeout time.Duration
+
+	// Telemetry, if non-nil, is used to record bytes sent.
+	Telemetry *telemetry.TelemetryCollector
 }
 
 // NewTCPSender creates a new TCPSender with sane defaults.
@@ -61,8 +65,13 @@ func (s *TCPSender) Send(conn net.Conn, chunk []byte, metadata *models.ChunkMeta
 		return fmt.Errorf("write data: %w", err)
 	}
 
-	if _, err := conn.Write(buf.Bytes()); err != nil {
+	n, err := conn.Write(buf.Bytes())
+	if err != nil {
 		return fmt.Errorf("send frame: %w", err)
+	}
+
+	if s.Telemetry != nil {
+		s.Telemetry.RecordBytesSent(n)
 	}
 
 	return nil

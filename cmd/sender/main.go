@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"github.com/deb2000-sudo/trackshift/internal/chunker"
 	"github.com/deb2000-sudo/trackshift/internal/crypto"
 	"github.com/deb2000-sudo/trackshift/internal/session"
+	"github.com/deb2000-sudo/trackshift/internal/telemetry"
 	"github.com/deb2000-sudo/trackshift/internal/transport"
 	"github.com/deb2000-sudo/trackshift/pkg/models"
 	"github.com/deb2000-sudo/trackshift/pkg/utils"
@@ -27,7 +29,17 @@ func main() {
 	protocolFlag := flag.String("protocol", "tcp", "transport protocol: tcp or udp")
 	parallelStreams := flag.Int("parallel-streams", 32, "number of parallel streams for UDP")
 	resumeSession := flag.String("resume", "", "resume existing session ID instead of creating a new one")
+	chunkingMode := flag.String("chunking-mode", "static", "chunking mode: static or ai")
+	logFile := flag.String("log-file", "", "path to log file (optional)")
 	flag.Parse()
+
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			log.Fatalf("open log file: %v", err)
+		}
+		log.SetOutput(io.MultiWriter(os.Stdout, f))
+	}
 
 	if *filePath == "" || *receiverAddr == "" {
 		flag.Usage()
@@ -69,8 +81,25 @@ func main() {
 		}
 	}
 
-	ch := chunker.NewChunker(chunker.ChunkerConfig{})
-	chunkMetas, err := ch.ChunkFile(*filePath, *chunkSizeFlag)
+	// Create telemetry collector used by AI chunking and transport.
+	netTelemetry := telemetry.NewTelemetryCollector()
+
+	cfg := chunker.ChunkerConfig{
+		Telemetry: netTelemetry,
+	}
+	// Decide chunk size either statically or using the AI heuristic.
+	var chosenChunkSize int64
+	switch *chunkingMode {
+	case "ai":
+		chosenChunkSize = cfg.ChooseChunkSizeAI(fileMeta)
+		log.Printf("AI chunking selected size: %s (%d bytes)", utils.HumanBytes(chosenChunkSize), chosenChunkSize)
+	default:
+		chosenChunkSize = cfg.ChooseChunkSizeStatic(*chunkSizeFlag)
+		log.Printf("Static chunking using size: %s (%d bytes)", utils.HumanBytes(chosenChunkSize), chosenChunkSize)
+	}
+
+	ch := chunker.NewChunker(cfg)
+	chunkMetas, err := ch.ChunkFile(*filePath, chosenChunkSize)
 	if err != nil {
 		log.Fatalf("chunk file: %v", err)
 	}
@@ -83,25 +112,32 @@ func main() {
 	log.Printf("Starting transfer: %s (%s) to %s, %d chunks over %s\n",
 		fileMeta.Name, utils.HumanBytes(fileMeta.Size), *receiverAddr, len(chunkMetas), *protocolFlag)
 
-	switch *protocolFlag {
-	case "tcp":
-		runTCPSender(*receiverAddr, *filePath, fileMeta, sess, sessMgr, chunkMetas, info.Size())
-	case "udp":
-		runUDPSender(*receiverAddr, *filePath, fileMeta, sess, sessMgr, chunkMetas, info.Size(), *parallelStreams)
-	default:
-		log.Fatalf("unknown protocol %q", *protocolFlag)
-	}
+		switch *protocolFlag {
+		case "tcp":
+			runTCPSender(*receiverAddr, *filePath, fileMeta, sess, sessMgr, chunkMetas, info.Size(), netTelemetry)
+		case "udp":
+			runUDPSender(*receiverAddr, *filePath, fileMeta, sess, sessMgr, chunkMetas, info.Size(), *parallelStreams, netTelemetry)
+		default:
+			log.Fatalf("unknown protocol %q", *protocolFlag)
+		}
 }
 
 func runTCPSender(receiver, filePath string, fileMeta models.FileMetadata, sess *models.TransferSession,
-	sessMgr *session.SessionManager, chunkMetas []*models.ChunkMetadata, totalSize int64) {
+	sessMgr *session.SessionManager, chunkMetas []*models.ChunkMetadata, totalSize int64, netTelemetry *telemetry.TelemetryCollector) {
 
 	sender := transport.NewTCPSender()
+	sender.Telemetry = netTelemetry
+	startDial := time.Now()
 	conn, err := sender.Connect(receiver)
 	if err != nil {
 		log.Fatalf("connect to receiver: %v", err)
 	}
 	defer conn.Close()
+
+	// Record a simple RTT measurement from TCP connect.
+	if netTelemetry != nil {
+		netTelemetry.RecordRTT(time.Since(startDial))
+	}
 
 	bar := progressbar.NewOptions64(
 		totalSize,
@@ -187,6 +223,6 @@ func runUDPSender(receiver, filePath string, fileMeta models.FileMetadata, sess 
 	sessMgr *session.SessionManager, chunkMetas []*models.ChunkMetadata, totalSize int64, parallelStreams int) {
 	// UDP implementation will be added in the next iteration; for now fall back to TCP
 	log.Println("UDP protocol not yet fully implemented; falling back to TCP for now")
-	runTCPSender(receiver, filePath, fileMeta, sess, sessMgr, chunkMetas, totalSize)
+			runTCPSender(receiver, filePath, fileMeta, sess, sessMgr, chunkMetas, totalSize, netTelemetry)
 }
 

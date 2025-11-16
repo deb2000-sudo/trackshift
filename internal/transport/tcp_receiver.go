@@ -46,6 +46,10 @@ func NewTCPReceiver(outputDir, tempDir string) (*TCPReceiver, error) {
 func (r *TCPReceiver) Receive(conn net.Conn) ([]byte, *models.ChunkMetadata, error) {
 	var metaLen uint32
 	if err := binary.Read(conn, binary.BigEndian, &metaLen); err != nil {
+		// Treat clean connection close as io.EOF so callers can stop without logging an error.
+		if err == io.EOF {
+			return nil, nil, io.EOF
+		}
 		return nil, nil, fmt.Errorf("read meta length: %w", err)
 	}
 	metaBytes := make([]byte, metaLen)

@@ -1,0 +1,18 @@
+{
+  "id": "f7723819-1c63-48ee-b9c6-b97008e8d3a3",
+  "file": {
+    "name": "testfile.bin",
+    "size": 104857600,
+    "hash": "995373067727d5c646885e254ba68c821ad265af8afca44a14e9307544ca20e1",
+    "mime_type": ""
+  },
+  "status": "created",
+  "chunks": {},
+  "created_at": "2025-11-16T09:40:20.543236232+05:30",
+  "updated_at": "2025-11-16T09:40:20.543236232+05:30",
+  "total_chunks": 2,
+  "completed": 0,
+  "failed": 0,
+  "bytes_sent": 0,
+  "bytes_received": 0
+}
