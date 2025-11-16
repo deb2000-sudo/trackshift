@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    ports:
+      - "8000:8000"
+
+  relay-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.relay
+    environment:
+      - RELAY_ID=relay-1
+      - LISTEN_PORT=9001
+      - FORWARD_ADDRESS=receiver:9090
+      - ORCHESTRATOR_URL=http://orchestrator:8000
+    depends_on:
+      - orchestrator
+
+  receiver:
+    build:
+      context: .
+      dockerfile: Dockerfile.receiver
+    command: ["./receiver", "--port", "9090", "--output-dir", "/data"]
+    volumes:
+      - ./data:/data
+
+
